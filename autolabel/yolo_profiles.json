@@ -1,0 +1,7 @@
+{
+  "v5": {"layout": "split", "tasks": ["detect", "seg"], "weights": "yolov5n.pt", "seg_weight": "yolov5n-seg.pt"},
+  "v8": {"layout": "type", "tasks": ["detect", "seg", "pose"], "weights": "yolov8n.pt", "seg_weight": "yolov8n-seg.pt", "pose_weight": "yolov8n-pose.pt"},
+  "v10": {"layout": "type", "tasks": ["detect"], "weights": "yolov10n.pt"},
+  "v11": {"layout": "type", "tasks": ["detect", "seg", "pose"], "weights": "yolo11n.pt", "seg_weight": "yolo11n-seg.pt", "pose_weight": "yolo11n-pose.pt"},
+  "v26": {"layout": "type", "tasks": ["detect", "seg", "pose"], "weights": "yolo26n.pt", "seg_weight": "yolo26n-seg.pt", "pose_weight": "yolo26n-pose.pt"}
+}
