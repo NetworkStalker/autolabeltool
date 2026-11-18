@@ -10,7 +10,7 @@ from pathlib import Path
 from threading import Event
 
 import yaml
-from PySide6.QtCore import QAbstractListModel, QEvent, QModelIndex, QRect, QRectF, QSize, Qt, QThread, QThreadPool, QTimer, Signal
+from PySide6.QtCore import QAbstractListModel, QEvent, QModelIndex, QRect, QRectF, QSize, Qt, QThread, QThreadPool, QTimer, Signal, QSettings
 from PySide6.QtGui import QAction, QColor, QIcon, QKeySequence, QPainter, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView, QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout,
@@ -315,6 +315,9 @@ class Window(QMainWindow):
         self.action(data, "Assign split to selected images", self.set_split)
         self.export_button = self.button(toolbar, "Export dataset", self.export_dataset)
         self.export_button.setProperty("primary", True)
+        self.theme_button = self.button(toolbar, "☀", self.toggle_theme)
+        self.theme_button.setToolTip("Switch light / dark mode")
+        self.theme_button.setAccessibleName("Switch color theme")
         self.action(export, "Export YOLO", self.export_dataset)
         self.action(view, "Fit image  F", lambda: self.canvas.fit())
         self.action(view, "Actual size  0", lambda: self.canvas.actual_size())
@@ -353,11 +356,13 @@ class Window(QMainWindow):
             button = self.button(tools, f"{name}  {key}", lambda mode=tool: self.set_tool(mode))
             button.setToolTip(f"{name} tool · {key}")
             button.setCheckable(True)
+            self.tool_icon(button, tool)
             self.tool_buttons[tool] = button
         self.more_tools = self.menu_button(tools, "More tools", [
             ("Point  P", lambda: self.set_tool("point")),
             ("Keypoint  K", lambda: self.set_tool("keypoint")),
         ])
+        self.tool_icon(self.more_tools, "more")
         self.box_mode = QComboBox()
         self.box_mode.addItems(["Drag box", "Two corners"])
         self.box_mode.currentIndexChanged.connect(self.box_mode_changed)
@@ -367,7 +372,9 @@ class Window(QMainWindow):
         self.visibility.currentIndexChanged.connect(lambda index: setattr(self.canvas, "visibility", 2 - index))
         tools.addWidget(self.visibility)
         tools.addStretch()
-        self.button(tools, "Fit  F", lambda: self.canvas.fit())
+        fit_button = self.button(tools, "Fit  F", lambda: self.canvas.fit())
+        fit_button.setToolTip("Fit image · F")
+        self.tool_icon(fit_button, "fit")
         self.canvas = Canvas()
         self.canvas.changed.connect(self.guarded_with_item)
         self.canvas.selected.connect(self.select_object)
@@ -605,6 +612,60 @@ class Window(QMainWindow):
             self.reset_filters()
         else:
             self.add_images()
+
+    def tool_icon(self, button, kind):
+        from PySide6.QtGui import QPen, QPolygonF
+        from PySide6.QtCore import QPointF
+        pixmap = QPixmap(32, 32)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor("#729eaa"), 2))
+        if kind == "select":
+            painter.drawPolygon(QPolygonF([QPointF(7, 4), QPointF(24, 17), QPointF(16, 19), QPointF(12, 27)]))
+        elif kind == "box":
+            painter.drawRect(6, 7, 20, 18)
+        elif kind == "polygon":
+            painter.drawPolygon(QPolygonF([QPointF(6, 23), QPointF(10, 6), QPointF(25, 10), QPointF(27, 25)]))
+        elif kind == "point":
+            painter.drawEllipse(12, 12, 8, 8)
+        elif kind == "keypoint":
+            painter.drawLine(8, 23, 16, 7)
+            painter.drawLine(16, 7, 25, 22)
+            for x, y in [(8, 23), (16, 7), (25, 22)]:
+                painter.drawEllipse(QPointF(x, y), 3, 3)
+        elif kind == "fit":
+            for x, y, dx, dy in [(6, 6, 7, 7), (26, 6, -7, 7), (6, 26, 7, -7), (26, 26, -7, -7)]:
+                painter.drawLine(x, y, x + dx, y)
+                painter.drawLine(x, y, x, y + dy)
+        else:
+            for x in (8, 16, 24):
+                painter.drawEllipse(QPointF(x, 16), 2, 2)
+        painter.end()
+        button.setAccessibleName(button.toolTip() or kind)
+        button.setIcon(QIcon(pixmap))
+        button.setIconSize(QSize(28, 28))
+        button.setText("")
+        button.setFixedSize(48, 44)
+
+    def toggle_theme(self):
+        self.apply_theme(not getattr(self, "light_mode", False))
+
+    def apply_theme(self, light):
+        self.light_mode = light
+        style = STYLE
+        if light:
+            replacements = {"#10151c": "#f3f6fa", "#dde5ef": "#243448", "#171f2a": "#ffffff",
+                            "#202b39": "#edf2f7", "#334155": "#c9d3df", "#111923": "#ffffff",
+                            "#2b3747": "#ced8e3", "#8997aa": "#52647a", "#8c9cb0": "#586b80",
+                            "#9cabbc": "#52647a", "#ecf4fc": "#20334a", "#2b3a4d": "#dbe7ef",
+                            "#214b43": "#ceefe4", "#b7f5df": "#155a48", "#8ce8cb": "#16735b"}
+            for old, new in replacements.items():
+                style = style.replace(old, new)
+        QApplication.instance().setStyleSheet(style)
+        self.canvas.setBackgroundBrush(QColor("#e1e7ef" if light else "#0e1320"))
+        self.theme_button.setText("☾" if light else "☀")
+        QSettings("DLabel", "LabelTool").setValue("light_mode", light)
 
     def expand_list(self, kind):
         if not hasattr(self, "list_windows"):
@@ -1279,7 +1340,8 @@ class Window(QMainWindow):
             button.setChecked(tool == key)
         self.box_mode.setVisible(tool == "box")
         self.visibility.setVisible(tool == "keypoint")
-        self.more_tools.setText({"point": "Point · P", "keypoint": "Keypoint · K"}.get(tool, "More tools"))
+        self.more_tools.setToolTip({"point": "Point · P", "keypoint": "Keypoint · K"}.get(tool, "More tools · Point / Keypoint"))
+        self.tool_icon(self.more_tools, tool if tool in ("point", "keypoint") else "more")
         self.update_status()
 
     def box_mode_changed(self, index):
@@ -1551,6 +1613,7 @@ def main():
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
     window = Window()
+    window.apply_theme(QSettings("DLabel", "LabelTool").value("light_mode", False, type=bool))
     window.show()
     if args.project:
         window.guarded(lambda: window.open_project(args.project))()
