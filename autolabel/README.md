@@ -602,32 +602,6 @@ Remove-Item Env:QT_QPA_PLATFORM
 Batch รุ่นเดิมเขียนทับ Output เดิมได้ ควรใช้ปลายทางใหม่เสมอและไม่ใช้โฟลเดอร์งาน GUI
 
 <a id="github"></a>
-## อัปขึ้น GitHub
-
-สำหรับเจ้าของโปรเจกต์ ไม่จำเป็นสำหรับผู้ใช้ทั่วไป
-
-1. สร้าง Repository ว่างบน GitHub คัดลอก URL จริง
-2. ตรวจไฟล์ก่อนเพิ่ม โดยเฉพาะรูปจริง Dataset โมเดล และ Log
-3. `.gitignore` ข้าม .venv, .deps, __pycache__, .dlabel และ WAL/SHM, .pt, logs, ui-preview แล้ว แต่ไม่ได้ครอบคลุม Dataset/โมเดลทุกชนิด
-4. ตัวอย่างนี้เพิ่มเฉพาะโค้ด คู่มือ Requirements และภาพเอกสาร:
-
-```powershell
-git init
-git add README.md .gitignore requirements.txt requirements-ml.txt requirements-text.txt
-git add label_tool.py label_canvas.py label_project.py label_dialogs.py label_thumbnails.py
-git add label_predict.py label_export.py label_train.py label_video.py yolo_profiles.json
-git add auto_label_yolov.py start_label_tool.cmd start_label_tool.command test_ui_regressions.py preview_ui.py docs
-git status
-git diff --cached --stat
-git commit -m "Add DLabel desktop labeling tool and documentation"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-git push -u origin main
-```
-
-แทน URL ก่อนใช้ หากมี Repository / Remote / Commit แล้ว ให้ใช้ Workflow เดิม ไม่รันชุดเริ่มต้นซ้ำ หากปลายทางมี Commit ต้องจัดการประวัติให้ตรงกันก่อน Push
-
-กำหนด License ของโค้ดตามที่เจ้าของต้องการก่อนเผยแพร่ คู่มือนี้ไม่ได้ประกาศ License แทนเจ้าของ โมเดลและ Dependencies ต้องตรวจสิทธิ์แยกตามที่ใช้
 
 <a id="limitations"></a>
 ## ข้อจำกัด
