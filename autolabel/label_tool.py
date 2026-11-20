@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from collections import OrderedDict, defaultdict
 from dataclasses import replace
@@ -30,6 +31,13 @@ from label_train import train_dataset
 from label_thumbnails import ThumbnailSignals, ThumbnailTask
 
 LOGGER = logging.getLogger("dlabel")
+MACOS = sys.platform == "darwin"
+TOGGLE_ANNOTATIONS_KEY = "Ctrl+Shift+H" if MACOS else "Ctrl+H"
+REDO_KEY = "Ctrl+Shift+Z" if MACOS else "Ctrl+Y"
+
+
+def shortcut_label(text):
+    return text.replace("Ctrl+", "Cmd+") if MACOS else text
 
 
 STYLE = """
@@ -221,7 +229,7 @@ class Window(QMainWindow):
         return call
 
     def action(self, menu, text, callback, toolbar=None):
-        action = QAction(text, self)
+        action = QAction(shortcut_label(text), self)
         action.triggered.connect(self.guarded(callback))
         if menu:
             menu.addAction(action)
@@ -295,7 +303,7 @@ class Window(QMainWindow):
         self.action(file_menu, "Import YOLO dataset", self.import_yolo)
         self.action(file_menu, "Import video frames", self.import_video)
         self.action(edit_menu, "Undo  Ctrl+Z", lambda: self.undo(False))
-        self.action(edit_menu, "Redo  Ctrl+Y", lambda: self.undo(True))
+        self.action(edit_menu, f"Redo  {REDO_KEY}", lambda: self.undo(True))
         self.action(edit_menu, "Copy object  Ctrl+C", self.copy_object)
         self.action(edit_menu, "Paste  Ctrl+V", self.paste)
         self.action(edit_menu, "Copy previous labels  Ctrl+Shift+V", self.paste_previous)
@@ -322,7 +330,7 @@ class Window(QMainWindow):
         self.action(view, "Fit image  F", lambda: self.canvas.fit())
         self.action(view, "Actual size  0", lambda: self.canvas.actual_size())
         self.action(view, "Toggle class names  L", lambda: self.toggle_canvas("show_names"))
-        self.action(view, "Toggle annotations  Ctrl+H", lambda: self.toggle_canvas("show_objects"))
+        self.action(view, f"Toggle annotations  {TOGGLE_ANNOTATIONS_KEY}", lambda: self.toggle_canvas("show_objects"))
         self.action(help_menu, "Keyboard shortcuts", self.show_help)
 
         root = QWidget()
@@ -586,15 +594,18 @@ class Window(QMainWindow):
             "D": lambda: self.navigate(1), "A": self.previous_or_approve, "Ctrl+Right": self.next_unlabeled,
             "PgUp": lambda: self.navigate(-1), "PgDown": lambda: self.navigate(1),
             "F8": self.auto_next.click, "F1": self.show_help,
-            "Ctrl+Z": lambda: self.undo(False), "Ctrl+Y": lambda: self.undo(True),
+            "Ctrl+Z": lambda: self.undo(False), REDO_KEY: lambda: self.undo(True),
             "Ctrl+C": self.copy_object, "Ctrl+V": self.paste, "Ctrl+Shift+V": self.paste_previous,
             "Delete": self.delete_object, "F": lambda: self.canvas.fit(), "0": lambda: self.canvas.actual_size(),
-            "L": lambda: self.toggle_canvas("show_names"), "Ctrl+H": lambda: self.toggle_canvas("show_objects"),
+            "L": lambda: self.toggle_canvas("show_names"),
+            TOGGLE_ANNOTATIONS_KEY: lambda: self.toggle_canvas("show_objects"),
             "Return": self.enter, "Enter": self.enter, "N": self.mark_null,
             "X": lambda: self.review(False), "R": lambda: self.review(False) if self.review_mode else None,
             "E": lambda: self.set_tool("select"), "Ctrl+R": self.quick_predict,
             "Escape": self.canvas.reset_gesture,
         }
+        if MACOS:
+            keys["Backspace"] = self.delete_object
         keys.update({key: (lambda tool=tool: self.set_tool(tool)) for key, tool in
                      zip("HBPGK", ("select", "box", "point", "polygon", "keypoint"))})
         for direction, dx, dy in (("Left", -1, 0), ("Right", 1, 0), ("Up", 0, -1), ("Down", 0, 1)):
@@ -733,16 +744,18 @@ class Window(QMainWindow):
         self.refresh_images()
 
     def show_help(self):
-        QMessageBox.information(self, "Keyboard shortcuts",
+        delete_key = "Delete (⌫)" if MACOS else "Del"
+        QMessageBox.information(self, "Keyboard shortcuts", shortcut_label(
             "PgUp / PgDn or A / D: previous / next · Ctrl+→: next unlabeled\n"
             "F8: toggle auto-next after drawing a box · F1: show shortcuts\n"
             "H / B / P / G / K: select / box / point / polygon / keypoint\n"
-            "Shift+click: select in drawing tools · 1–9: class · Del: delete\n"
+            f"Shift+click: select in drawing tools · 1–9: class · {delete_key}: delete\n"
             "Arrow keys: move 1 px · Shift+arrows: 10 px\n"
-            "Ctrl+Z/Y: undo/redo · Ctrl+C/V: copy/paste · Ctrl+Shift+V: previous labels\n"
+            f"Ctrl+Z: undo · {REDO_KEY}: redo · Ctrl+C/V: copy/paste · Ctrl+Shift+V: previous labels\n"
             "Wheel: zoom · Space+drag or middle button: pan · F: fit · 0: actual size\n"
             "Enter: finish polygon / approve · X: reject · N: null · Ctrl+R: auto-label\n"
-            "Review mode: A approve, R reject, E edit.")
+            f"L: toggle class names · {TOGGLE_ANNOTATIONS_KEY}: toggle annotations\n"
+            "Review mode: A approve, R reject, E edit."))
 
     def choose_project(self, create):
         if self.job:

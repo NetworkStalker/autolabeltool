@@ -1,4 +1,6 @@
 """Dialogs for project classes, inference mapping, and export options."""
+import platform
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -11,6 +13,9 @@ from PySide6.QtWidgets import (
 
 from label_export import PROFILES
 from label_predict import OFFICIAL, TEXT_MODEL
+
+MACOS = sys.platform == "darwin"
+APPLE_SILICON = MACOS and platform.machine() == "arm64"
 
 
 class Form(QDialog):
@@ -106,7 +111,8 @@ class SourceDialog(Form):
         layout.addWidget(browse)
         self.form.addRow("Model file", file_row)
         self.device = QLineEdit("cpu")
-        self.form.addRow("Device (cpu, 0, mps)", self.device)
+        devices = "cpu, mps" if APPLE_SILICON else "cpu" if MACOS else "cpu, 0, mps"
+        self.form.addRow(f"Device ({devices})", self.device)
         self.imgsz = self.number("Image size", 640, 32, 4096)
         self.family.currentTextChanged.connect(self.sizes)
         self.mode.currentTextChanged.connect(self.toggle)
@@ -371,7 +377,12 @@ class TrainDialog(Form):
         self.epochs = self.number("Epochs", 50, 1, 1000)
         self.imgsz = self.number("Image size", 640, 64, 4096)
         self.imgsz.setSingleStep(32)
-        self.device = self.choice("Device", ["CPU", "GPU 0 (CUDA)"])
+        self.device = self.choice("Device", ["CPU"])
+        self.device.setItemData(0, "cpu")
+        if APPLE_SILICON:
+            self.device.addItem("Apple GPU (MPS)", "mps")
+        elif not MACOS:
+            self.device.addItem("GPU 0 (CUDA)", "0")
         self.buttons("Start training")
 
     def browse_weights(self):
@@ -390,7 +401,7 @@ class TrainDialog(Form):
         weights = self.weights.text().strip()
         model = "yolo11n.pt" if weights == "yolo11n.pt" else str(Path(weights).resolve())
         return dict(model=model, epochs=self.epochs.value(), imgsz=self.imgsz.value(),
-                    device="cpu" if self.device.currentIndex() == 0 else "0")
+                    device=self.device.currentData())
 
 
 class ExportDialog(Form):

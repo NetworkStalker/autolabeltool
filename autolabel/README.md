@@ -2,7 +2,7 @@
 
 แอปเดสก์ท็อปสำหรับทำ Annotation รูปภาพและเตรียม Dataset สำหรับ YOLO รองรับ Box, Point, Polygon และ Keypoint พร้อม Auto-label ตรวจผลทำนาย Export และ Training ในเครื่อง
 
-คู่มือนี้ใช้ **Windows / PowerShell** ชื่อปุ่มและเมนูตรงกับหน้าจอภาษาอังกฤษของโปรแกรม
+คู่มือนี้มีขั้นตอนติดตั้งสำหรับ **Windows** และ **macOS** ชื่อปุ่มและเมนูตรงกับหน้าจอภาษาอังกฤษของโปรแกรม
 
 ![หน้าหลัก DLabel พร้อมข้อมูลจำลอง](docs/images/workspace.png)
 
@@ -48,13 +48,36 @@
 
 | รายการ | รายละเอียด |
 | --- | --- |
-| ระบบตามคู่มือ | Windows พร้อม PowerShell |
+| ระบบตามคู่มือ | Windows พร้อม PowerShell หรือ macOS พร้อม Terminal |
 | Python | 3.10 ขึ้นไป พร้อม pip และ venv |
 | Git | สำหรับ Clone / Push; ดาวน์โหลด ZIP แทนได้ |
 | อินเทอร์เน็ต | สำหรับติดตั้งแพ็กเกจและดาวน์โหลดโมเดล/ตัวอ่านคำค้นครั้งแรก |
 | GPU | ไม่จำเป็นสำหรับวาด Label; Auto-label และ Training ใช้ CPU ได้ |
 
-การใช้ GPU ต้องเตรียม PyTorch / CUDA ให้รองรับอุปกรณ์ก่อน การเลือก Device `0` ไม่ได้ติดตั้งส่วนรองรับ GPU ให้อัตโนมัติ
+บน Windows การใช้ Device `0` ต้องติดตั้ง PyTorch ที่รองรับ CUDA บน macOS ใช้ `cpu` ได้ และเลือก `mps` บน Apple Silicon เมื่อ PyTorch รองรับ
+
+### ติดตั้งบน macOS
+
+เปิด Terminal ในโฟลเดอร์ที่มี `label_tool.py` ใช้ Python 3.12 เช่นจาก python.org บน Apple Silicon ให้ใช้ Terminal และ Python แบบ arm64 เพื่อให้ใช้ MPS ได้
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python label_tool.py
+```
+
+สำหรับ Auto-label, Training หรือดึงเฟรมวิดีโอ ให้ติดตั้งชุด ML ใน Environment เดียวกัน:
+
+```sh
+.venv/bin/python -m pip install -r requirements-ml.txt
+```
+
+หากใช้ YOLO-World ให้ติดตั้งเพิ่มด้วย `.venv/bin/python -m pip install -r requirements-text.txt` สำหรับ ONNX บน CPU ให้ติดตั้ง `onnxruntime` ส่วน TensorRT `.engine` ต้องใช้เครื่องที่รองรับ CUDA และ TensorRT
+
+เปิดโปรแกรมจาก Terminal พร้อมโปรเจกต์เดิมได้ด้วย `sh start_label_tool.command "/path/to/project.dlabel"` หากต้องการดับเบิลคลิกจาก Finder ให้รัน `chmod +x start_label_tool.command` หนึ่งครั้งก่อน
+
+### ติดตั้งบน Windows
 
 ### 1. ดาวน์โหลดโปรเจกต์
 
@@ -439,7 +462,7 @@ GUI รองรับ Training แบบ **YOLO Detect** ต้องติด�
 1. Export Detect ให้มีรูปใน Train และ Validation และมีกรอบอย่างน้อยหนึ่งกรอบใน Train
 2. **Model → Train Dataset…** เลือก `data.yaml` จาก Dataset ที่ Export
 3. Starting weights เริ่มต้น `yolo11n.pt` หรือ Browse ไฟล์ `.pt` แบบ Detect
-4. ตั้ง Epochs, Image size และ CPU หรือ GPU 0 (CUDA)
+4. ตั้ง Epochs, Image size และเลือก CPU, GPU 0 (CUDA) บน Windows หรือ Apple GPU (MPS) บน Apple Silicon
 5. **Start training** ดูสถานะด้านล่าง หรือ **Cancel job** เพื่อยกเลิก
 6. เมื่อสำเร็จ **Use for Auto-label** แล้วจับคู่คลาสและเลือกรูปที่จะรัน
 
@@ -460,6 +483,8 @@ training-runs/
 ## คีย์ลัด
 
 กด `F1` หรือ **Help → Keyboard shortcuts** เพื่อดูในโปรแกรม
+
+บน macOS ใช้ `Cmd` แทน `Ctrl` ในตาราง รวมถึงตอนเลือกหลายรูป ใช้ `Cmd+Shift+Z` เพื่อ Redo, `Cmd+Shift+H` เพื่อสลับการแสดง Annotation และปุ่ม `Delete (⌫)` เพื่อลบวัตถุ
 
 | ปุ่ม | การทำงาน |
 | --- | --- |
@@ -543,6 +568,7 @@ training-runs/
 | label_video.py | ดึงเฟรมวิดีโอ |
 | yolo_profiles.json | โปรไฟล์ Export |
 | start_label_tool.cmd | Launcher Windows |
+| start_label_tool.command | Launcher macOS |
 | test_ui_regressions.py | ทดสอบ UI และแก้ข้อมูล |
 | preview_ui.py | สร้างภาพหน้าจอด้วยข้อมูลจำลองชั่วคราว |
 | auto_label_yolov.py | Batch รุ่นเดิม แยกจาก GUI |
@@ -556,6 +582,8 @@ Remove-Item Env:QT_QPA_PLATFORM
 ```
 
 ครอบคลุม Save / Undo / Redo, Review, Thumbnail, ตัวกรองไม่ดันหน้าต่าง และหน้าต่างรายการแยก ไม่ดาวน์โหลดโมเดลหรือทดสอบ Training / Inference จริง
+
+บน macOS รันด้วย `QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_ui_regressions -v`
 
 สร้างภาพหน้าจอด้วยข้อมูลจำลอง:
 
@@ -588,7 +616,7 @@ git init
 git add README.md .gitignore requirements.txt requirements-ml.txt requirements-text.txt
 git add label_tool.py label_canvas.py label_project.py label_dialogs.py label_thumbnails.py
 git add label_predict.py label_export.py label_train.py label_video.py yolo_profiles.json
-git add auto_label_yolov.py start_label_tool.cmd test_ui_regressions.py preview_ui.py docs
+git add auto_label_yolov.py start_label_tool.cmd start_label_tool.command test_ui_regressions.py preview_ui.py docs
 git status
 git diff --cached --stat
 git commit -m "Add DLabel desktop labeling tool and documentation"
@@ -604,7 +632,6 @@ git push -u origin main
 <a id="limitations"></a>
 ## ข้อจำกัด
 
-- คู่มือเน้น Windows ไม่ยืนยัน UI และ Launcher บนทุกระบบ
 - Auto-label และ Training ใน GUI รองรับ Detect แม้ Export มี Seg / Pose
 - โปรไฟล์ Export ไม่รับประกันความเข้ากันได้กับ YOLO Fork หรือ Runtime ทุกชุด
 - ยังไม่มี SAM, OBB, Tracking, COCO/VOC, Dataset Versioning, Augmentation หรือ Dashboard
