@@ -496,6 +496,10 @@ class Window(QMainWindow):
         self.model_caption.setWordWrap(True)
         self.model_caption.setToolTip("Configure Auto-label above, or open the Model menu for training and saved models.")
         right.addWidget(self.model_caption)
+        self.quick_predict_button = self.button(right, "Auto-label this image", self.quick_predict)
+        self.quick_predict_button.setToolTip(shortcut_label(
+            "Run the most recently saved model on this image using its saved settings (Ctrl+R)."
+        ))
         split.addWidget(workspace)
 
         bottom = QWidget()
@@ -1179,6 +1183,7 @@ class Window(QMainWindow):
         ready = bool(self.project and not self.job and not self.preview)
         self.add_images_button.setEnabled(ready)
         self.auto_label_button.setEnabled(ready and bool(self.film.rows))
+        self.quick_predict_button.setEnabled(ready and bool(self.image))
         self.export_button.setEnabled(ready and bool(self.class_rows))
         self.review_action.setEnabled(bool(self.project) and not self.job and not self.preview)
         current = self.gallery.currentIndex().row()
@@ -1531,16 +1536,16 @@ class Window(QMainWindow):
             else:
                 self.configure_model()
             return
-        self.run_predictions(source, config, [self.image["id"]], False)
+        self.run_predictions(source, config, [self.image["id"]], False, quick=True)
 
-    def run_predictions(self, source, config, ids, preview):
+    def run_predictions(self, source, config, ids, preview, *, quick=False):
         project_path = self.project.path
         self.start_job("Running auto-label…",
                        lambda cancel, progress: batch(project_path, ids, source, config, preview, cancel, progress),
-                       lambda result: self.predictions_done(result, preview, ids),
+                       lambda result: self.predictions_done(result, preview, ids, quick=quick),
                        cancellable=True, total_steps=len(ids))
 
-    def predictions_done(self, result, preview, ids):
+    def predictions_done(self, result, preview, ids, *, quick=False):
         if preview:
             self.preview = result["previews"]
             self.preview_button.setVisible(bool(self.preview))
@@ -1553,7 +1558,10 @@ class Window(QMainWindow):
                    f"{result['boxes']} boxes · {result['skipped']} skipped · {len(result['errors'])} errors")
         if result["cancelled"]:
             message += " · Cancelled"
-        self.report(message, result["errors"])
+        if quick and not result["errors"]:
+            self.statusBar().showMessage(message, 5000)
+        else:
+            self.report(message, result["errors"])
 
     def clear_preview(self):
         self.preview = {}
